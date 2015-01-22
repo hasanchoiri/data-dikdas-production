@@ -1,2072 +1,972 @@
-<?php
-
-	/**
-	 * 
-	 * version 1.0
-	function getLastUpdate($last_sync) {
-		
-		$lastSync = ($last_sync) ? strtotime($last_sync) : strtotime('2013-01-02 00:00:00');
-    	$lastSyncPlus1Hour = strtotime("+1 hour", $lastSync);
-    	$lastUpdate = date('Y-m-d H:i:s', $lastSyncPlus1Hour);
-		
-		return $lastUpdate;
-	}
-	 */
-
-	use DataDikdas\Model\SyncLogPeer;
-	
-	function getPlus30Minutes($lastSync) {
-		$lastSyncPlus30Minutes = strtotime("+30 minutes", $lastSync);
-		$lastSyncPlus30MinutesDate = date('Y-m-d H:i:s', $lastSyncPlus30Minutes);
-		
-		return $lastSyncPlus30MinutesDate;
-	}
-	
-	function getLastUpdate($last_sync, $app) {
-		
-		$lastSyncLog = $app['session']->get('sync_log_obj');
-		
-		if (is_object($lastSyncLog)) {
-			
-			$strBeginSync = strtotime($lastSyncLog->getBeginSync());
-			$strLastSync = strtotime($last_sync);
-			$beginSync = ($strBeginSync > $strLastSync) ? $strBeginSync : $strLastSync;
-			
-		} else {
-			
-			$beginSync = strtotime('2013-10-18 00:00:00');
-			
-		}
-		
-		$lastUpdate = getPlus30Minutes($beginSync);		
-		return $lastUpdate;
-		
-	}
-	
-	function getLastSync($last_sync, $app) {
-		
-		$lastSyncLog = $app['session']->get('sync_log_obj');
-		
-		if (is_object($lastSyncLog)) {
-			$strBeginSync = strtotime($lastSyncLog->getBeginSync());
-			$strLastSync = strtotime($last_sync);
-			
-			$lastSync = ($strBeginSync > $strLastSync) ? $lastSyncLog->getBeginSync() : $last_sync;
-			
-		} else {
-			$lastSync = "2013-10-18 00:00:00";
-		}
-	
-		return $lastSync;
-		
-	}
-
-	function getUuid($returnInvalid=0) {
-		return UUID::mint(1);
-	}
-
-	function getRandomString($length=1, $returnInvalid=0) {
-		$characters = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
-		$randomString = '';
-		for ($i = 0; $i < $length; $i++) {
-			$randomString .= $characters[rand(0, strlen($characters) - 1)];
-		}
-		return $randomString;
-	}
-
-	function getRandomNumber($length=0, $min=0, $max=9, $returnInvalid=0) {
-		$number = mt_rand($min, $max);	
-		$number = ($length > 0) ? substr(strval($number), 0, $length) : $number;
-		return $number;
-	}
-
-	function getRandomDate($start_date='1980-01-01', $end_date='2019-12-31', $returnInvalid=0) {
-
-		// Convert to timetamps
-		$min = strtotime($start_date);
-		$max = strtotime($end_date);
-
-		// Generate random number using above bounds
-		$val = rand($min, $max);
-
-		// Convert back to desired date format
-		return date('Y-m-d', $val);
-	}
-
-	function getRandomJk() {
-		$randomBoolean = .01 * rand(0, 100) >= .5;
-		return $randomBoolean ? "L" : "P";
-	}
-
-	function validate_email($email) {
-		if(eregi("^[_a-z0-9-]+(\.[_a-z0-9-]+)*@[a-z0-9-]+(\.[a-z0-9-]+)*(\.[a-z]{2,3})$", $email)) {
-			//echo "Valid email address.";
-			return true;
-		} else {
-			//echo "Invalid email address.";
-			return false;
-		}
-	}
-
-	function class_autoloader($class_name) {
-
-		if ($class_name == "FPDF") {    
-		
-		} else if ($class_name == "Realisasi") {
-
-		} else {
-			$class_file = str_replace('Xond', '', $class_name);
-			require_once $class_file.'.php';
-		}
-	}
-
-	function println($str) {
-		echo "$str\n";
-	}
-
-	function decode_mak($str, $noitem) {
-		$kdmak = "";
-		$decoder = array('[', '|', ']', ';', '<', '=', '>', '?', '@', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 
-						 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z');
-		for ($j = 0; $j <=5; $j++) {
-			//$kdmak .= (array_search(substr($str,$j-1,1), $decoder) - $j - ($noitem % 20))."|";
-			$kdmak .= array_search(substr($str,$j,1), $decoder) - $j - ($noitem % 20);//."|";
-		}
-		return $kdmak;
-	}
-
-	function tableJson($array, $rownum, $id, $start="0", $limit="20") {
-		//print_r($array); die();
-		$rows = sizeof($array) > 0 ? json_encode($array) : "[]";
-		$result = sprintf("{ 'results' : %s, 'id' : '%s', 'start': %s, 'limit': %s, 'rows' : %s }", 
-		$rownum, $id[0], $start, $limit, $rows);
-		return $result;
-	} 
-
-	function tableJsonSimple($array, $rownum, $id, $start="0", $limit="20") {
-		//print_r($array); die();
-		$rows = sizeof($array) > 0 ? json_encode($array) : "[]";	
-		$result = sprintf("{ 'results' : %s, id : '%s', 'start': %s, 'limit': %s, 'rows' : %s }", 
-						   $rownum, $id[0], $start, $limit, $rows);
-		return $result;
-	} 
-
-	function getArray($objArray, $type=BasePeer::TYPE_PHPNAME) {
-		$outArr = array();	
-		foreach ($objArray as $o) {
-			array_push($outArr, $o->toArray($type));
-		}
-		return $outArr;
-	}
-
-	function isUpperCase($char)
-	{
-	  if(ord($char)>64 && ord($char)<91)
-	  {
-		return TRUE;
-	  }
-	  elseif(ord($char)>96 && ord($char)<123)
-	  {
-		return FALSE;
-	  }
-	  else
-	  {
-		return FALSE;
-	  }
-	} 
-
-	function isLowerCase($char)
-	{
-	  if(ord($char)>64 && ord($char)<91)
-	  {
-		return FALSE;
-	  }
-	  elseif(ord($char)>96 && ord($char)<123)
-	  {
-		return TRUE;
-	  }
-	  else
-	  {
-		return FALSE;
-	  }
-	} 
-
-	function underscoreCapitalize($string) {        
-		$string;
-		//$pattern = '/[A-Z]/';
-		//$replacement = '_${0}';
-		$i = 0;
-		//$lastChar = " ";
-		$lastChar = ""; $out = "";
-		
-		foreach (str_split($string) as $c) {
-			//if ($i == 1) {
-			if (isLowerCase($lastChar) && isUpperCase($c))
-				$out .= "_".$c;
-			else
-				$out .= $c;
-			$lastChar = $c;		
-		}
-		return strtoupper($out);	
-		//return strtoupper(substr(preg_replace($pattern, $replacement, $string), 1));
-	} 
-
-	function phpNamize($string) {        
-		$rest = str_replace(' ', '', ucwords(str_replace('_', ' ', $string)));
-		return $rest; 
-	}
-
-	function humanize($string) {        
-		$string = underscoreCapitalize($string);
-		$rest = ucwords(strtolower(ucwords(str_replace('_', ' ', $string))));
-		return $rest;    
-	} 
-
-	function sentencesize($string) {
-		$string = underscoreCapitalize($string);
-		$rest = ucfirst(strtolower(ucfirst(str_replace('_', ' ', $string))));
-		return $rest;    
-	}
-
-	function splitJsonArray($jsonText) {
-		$j = $jsonText;
-		$arr = explode("},{", $j);
-		$size = sizeof($arr);
-		for ($i=0; $i<$size; $i++) {
-			if (($i==0) || ($i == ($size-1))) {
-				$arr[$i] = str_replace('[{','{', $arr[$i]);
-				$arr[$i] = str_replace('}]','}', $arr[$i]);
-			} 
-			if (($arr[$i][0] != "{")) {                
-				$arr[$i] = "{".$arr[$i];    
-			}
-			$lastOffset = strlen($arr[$i])-1;
-			if ($arr[$i][$lastOffset] != "}") {
-				$arr[$i] = $arr[$i]."}";
-			}
-			
-		}
-		return $arr;
-	}
-
-	function getNomorUrutBaru() {
-		//$c = new Criteria(); $c->add();
-	}
-
-	function getPeer($tblName){    
-		//echo $tblName; die;
-		$peerName = $tblName."Peer";
-		//$obj = new ${tblName}();
-		//$p = $obj->getPeer();
-		$p = new ${'peerName'}();
-		return $p;
-	}
-
-
-	function getTableColumn($table) {
-		$tbl['name'] = $table;
-		$tableClass = new ${table}();	    
-		$columns = $tableClass->getPeer()->getTableMap()->getColumns();
-		$tbl['totalWidth'] = 0;
-		foreach ($columns as $column) {
-			$col[$i]['realname'] = strtolower($column->getColumnName());
-			$col[$i]['name'] = $column->getPhpName();
-			$size = $column->getSize();
-			switch ($column->getType()) {
-				case 'INTEGER' :
-					$type = 'float';
-					$col[$i]['size'] = $size ? $size : 10;
-					break;
-				case 'BIGINT' :
-					$type = 'float';
-					$col[$i]['size'] = $size ? $size : 80;
-					$col[$i]['format'] = 'idMoney';
-					break;
-				case 'VARCHAR' :
-					$type = 'string';
-					$col[$i]['size'] = $size ? $size : 100;
-					break;
-				case 'DATE' :
-					$type = 'date';
-					$col[$i]['size'] = $size ? $size : 50;
-					$col[$i]['format'] = 'date';
-					break;
-				default:
-					$type = 'string';
-					break;
-			}
-			$col[$i]['type'] = $type;
-			if ($column->isPrimaryKey()) {
-				$col[$i]['isPkey'] = true;
-				$col[$i]['size'] = 10;
-				$tbl['pkey'] = $column->getPhpName();
-			} 								
-			if ($column->isForeignKey()){
-				$col[$i]['isFkey'] = true;
-				$relTableName = XondComponent::convertCase($column->getRelatedTableName());
-				$relTableClass = new ${relTableName}();
-				$col[$i]['fkTbl'] = $relTableName;
-				$col[$i]['fkCol'] = convertCase($column->getRelatedColumnName());
-				$col[$i]['fkDsp'] = $relTableClass->getNama();			    
-				$tbl['fkeys'][] = $relTableName;
-			}			    
-			$i++;
-			$tbl['totalWidth'] += $column->getSize();
-		}
-		if (method_exists($tableClass, "getNama"))
-		  $tbl['dsp'] = $tableClass->getNama();
-		$i = 0;
-		return array($tbl, $col);
-	} 
-
-	function convertCase($str){
-		$str = mb_ereg_replace("_", " ", $str);
-		$str = mb_convert_case($str, MB_CASE_TITLE, "UTF-8");
-		$str = mb_ereg_replace(" ", "", $str);
-		return $str;
-	}
-
-	function encodeArray($array) {
-		$i = 1;
-		$s = '[';
-		foreach ($array as $a) {
-			if ($i > 1) $s .= ",";
-			$s .= "$a";
-			$i++;
-		}
-		$s .= ']';
-		return $s;
-	}
-
-	function splitArray($text) {
-		$text = str_replace(array('[', ']'), '', $text);
-		$array = split(',', $text);
-		return $array;
-	} 
-
-	function addZeroes($number, $digits) {
-		return str_repeat('0',$digits - strlen($number)).$number;
-	}
-
-
-	/**
-	 * Huruf Yeuh
-	 */
-
-	function getRatus($number, $ribu=false) {
-		//echo $number."|";
-		$number = strval(intval($number));
-		//echo "($number)-[".strlen($number)."]";
-		//$number = (strlen($number) == 2) ? "".$number : (strlen($number) == 1)  ? "00".$number : $number;
-		if (strlen($number) == 2)
-			$number = "0".$number;
-		else if (strlen($number) == 1)
-			$number = "00".$number;	
-		//echo "-($number)";
-		if ($number == "000")
-			return "";
-		$huruf = "";
-		$belas = false;
-		
-		for ($i=0; $i<3; $i++) {
-			$n = substr($number, $i, 1);
-			switch ($n) {
-				case "1" : 				
-					//$h = ($i == 0) ? 'se' : ($i == 2) ? 'satu' : '';				
-					$h = ($i == 0) ? 'se' : (($i == 2) ? 'satu' : '');
-					$h = ($ribu) ? 'se' : $h;				
-					if ($i == 1) $belas = true;
-					break;
-				case "2" : 
-					$h = 'dua';
-					break;
-				case "3" : 
-					$h = 'tiga';
-					break;
-				case "4" : 
-					$h = 'empat';
-					break;
-				case "5" : 
-					$h = 'lima';
-					break;
-				case "6" : 
-					$h = 'enam';
-					break;
-				case "7" : 
-					$h = 'tujuh';
-					break;
-				case "8" : 
-					$h = 'delapan';
-					break;
-				case "9" : 			
-					$h = 'sembilan';
-					break;
-				default :
-					$h = "";
-					break;				
-			}
-			//echo "($i)($n)$h|";
-			if ($h == 'se') {
-				$spasi = "";					 
-			} else {
-				$spasi = " ";
-			}
-			
-			$spasi2 = ($ribu) ? '' : ' ';
-			
-			switch ($i) {
-				case 0 : 
-					$sat = (intval($n) > 0) ? 'ratus' : ""; 
-					break;
-				case 1 : 
-					$sat = (intval($n) > 1) ? "puluh" : "";
-					break;
-					//$sat = (intval($n) == 0) ? "" : ($belas) ? "" : "puluh";
-					//$sat = (intval($n) > 0) ? ($belas) ? "" : "puluh" : ""; break;
-				case 2 : 
-					if ($belas) {					
-						switch ($n) {
-							case '0' : 
-								$sat = "sepuluh";
-								$h = "";
-								break;
-							case '1' :
-								$sat = "sebelas";
-								$h = "";
-								break;
-							default :
-								$sat = "belas";
-								break;
-						}					
-					} else {
-						$sat = "";
-					}
-					/*
-					if ($belas && ($n == '0')) {
-						$sat = "sepuluh";
-						$h = "";
-					} else if ($belas && ($n == '1')) {
-						$sat = "sebelas";
-						$h = "";
-					} else if ($belas && (($n != 1) && ($n != 0)))	 {
-						$sat = "belas";					
-					}
-					*/
-					//$sat = ($belas && ($n == '0')) ? "sepuluh" : ($belas && ($n == '1')) ? "sebelas" : ($belas && (($n != 1) && ($n != 0))) ? "belas" : "";
-					//$h = ($belas && ($n == '1')) ? "" : $h;
-					break;
-			}
-			//$spasi = ($belas) ? "" : " "; 
-			$huruf .= $h.$spasi.$sat.$spasi2;
-			//echo "($i)($n)$h$sat|";
-		}
-		return $huruf;
-	}
-
-	function getHuruf($number) {
-		//$number = strval(intval($number));	
-		if ($number == 0) {
-			return "nol";
-		}
-		if ((strlen($number) % 3) == 2) {
-			$number = "0".$number;
-		} else if ((strlen($number) % 3) == 1) {
-			$number = "00".$number;
-		}
-		
-		$e3 = strlen($number)/3;
-		$huruf = "";
-		for ($i=1; $i<= $e3; $i++) {
-			//echo substr($number, (-3*$i), 3)."|";		
-			$numberPart = substr($number, (-3*$i), 3);
-			if ($i == 2 && (intval($numberPart) == 1)) {
-				$ribu = true; 
-			} else {
-				$ribu = false;
-			}
-			$ratus = getRatus($numberPart, $ribu);
-			//echo $ratus;
-			switch ($i) {
-				case 2 : $sat = "ribu"; break;
-				case 3 : $sat = "juta"; break;
-				case 4 : $sat = "milyar"; break;
-				case 5 : $sat = "trilyun"; break;
-			}		
-			$arr[$i]["ratus"] = $ratus;
-			$arr[$i]["sat"] = ($ratus != "") ? $sat : "";
-		}
-		for ($j= sizeof($arr); $j>=1; $j--) {
-			$huruf .= $arr[$j]["ratus"].$arr[$j]["sat"]." ";		
-		}
-		
-		return $huruf;
-	}
-
-	function executeSql($sql, $dbname=false) {
-		if (!$dbname) {
-			$con = Propel::getConnection($dbname);
-		} else {
-			$con = Propel::getConnection(DBNAME);
-		}
-		$stmt = $con->prepare($sql); 
-		try {
-			$stmt->execute(); 
-			return true;
-		} catch (Exception $e) {
-			return false;
-		}	
-	}
-
-	function executeMysql($sql) {
-
-		if (!$link = mysql_connect('mysql_host', 'mysql_user', 'mysql_password')) {
-			throw new Exception('Could not connect to mysql');
-			exit;
-		}
-
-		if (!mysql_select_db('mysql_dbname', $link)) {
-			throw new Exception('Could not select database');
-			exit;
-		}
-
-		//$sql    = 'SELECT foo FROM bar WHERE id = 42';
-		$result = mysql_query($sql, $link);
-
-		if (!$result) {
-			//echo "DB Error, could not query the database\n";
-			throw new Exception('MySQL Error: ' . mysql_error());
-			exit;
-		}
-
-		while ($row = mysql_fetch_assoc($result)) {
-			$arr[] = $row;
-		}
-
-		mysql_free_result($result);
-
-	}
-
-	function getValueBySql($sql) {
-		
-		$con = Propel::getConnection(DBNAME);	
-		$stmt = $con->prepare($sql); 
-		$stmt->execute(); 
-		$res = $stmt->fetch(PDO::FETCH_NUM);	
-		return $res[0];
-		
-	}
-
-	function getDataBySql($sql, $remove_keys=FALSE, $dbName=DBNAME) {
-		
-		$con = Propel::getConnection($dbName);
-		$stmt = $con->prepare($sql); 
-		$stmt->execute(); 
-		if ($remove_keys) {
-			$result = $stmt->setFetchMode(PDO::FETCH_NUM);		
-			$res = array();
-			while ($row = $stmt->fetch()) {
-				$res[] = $row;
-			}		
-		} else {		
-			$result = $stmt->setFetchMode(PDO::FETCH_ASSOC);		
-			$res = $stmt->fetchAll();		
-		}
-		
-		return $res;
-	}
-
-	function getbulan($number) {
-		$bulan = array (
-				'1' => 'Januari',
-				'2' => 'Februari',
-				'3' => 'Maret',
-				'4' => 'April',
-				'5' => 'Mei',
-				'6' => 'Juni',
-				'7' => 'Juli',
-				'8' => 'Agustus',
-				'9' => 'September',
-				'10' => 'Oktober',
-				'11' => 'November',
-				'12' => 'Desember'
-				);
-
-		$bul = $bulan[$number];
-		return $bul;
-	}
-
-	function nf($number) {
-		return number_format($number, 0, '', '.');
-	}
-
-	function percent($number) {
-		return number_format($number, 4, '.', '.');	
-	}
-
-	function nfOrSpace($number) {
-		return ($number > 0) ? number_format($number, 0, '', '.') : "&nbsp";
-	}
-
-	function pct($number){
-		return number_format($number*100, 2, ',', '.').'%';
-	}
-
-	function getPeerConstant($ormName, $constantName) {
-		return constant($ormName."Peer::".$constantName);
-	}
-
-	function arrayToHtmlTable($array) {
-		$str = "<table border='1'>";
-		$i = 0;
-		foreach ($array as $a) {
-			
-			if ($i == 0) {
-				$str .= "<tr>"; 
-				foreach ($a as $key=>$val) {
-					$str .= "<td>$key</td>";	
-				}
-				$str .= "</tr>";			
-			}
-			
-			$str .= "<tr>";
-			foreach ($a as $key=>$val) {
-				$str .= "<td>$val</td>";	
-			}
-			$str .= "</tr>";
-			$i++;
-			
-		}	
-		return $str;
-	}
-
-	function arrayToHtmlTableBlue($array) {
-		$str = "<table>";
-		$i = 0;
-		foreach ($array as $a) {
-			
-			if ($i == 0) {
-				$str .= "<tr>"; 
-				foreach ($a as $key=>$val) {
-					$str .= "<th>$key</th>";	
-				}
-				$str .= "</tr>";			
-			}
-			
-			$str .= "<tr>";
-			foreach ($a as $key=>$val) {
-				if (is_numeric($val)) {
-					$align = " align='right'";
-				} else {
-					$align = "";
-				}
-				$str .= "<td $align>$val</td>";
-			}
-			$str .= "</tr>";
-			$i++;
-			
-		}
-		$str .= "</table>";
-		return $str;
-	}
-
-
-	function processDate($dateStr){
-		$date = date_parse($dateStr);
-		return $date['day']." ".getbulan($date['month'])." ".$date['year'];
-	}
-
-	/**
-	 * Combined nested set / adjacency list tree.
-	 */
-	class Tree
-	{
-		private $data;
-		
-		public function __construct($data = array())
-		{
-			$this->data = $data;
-		}
-		
-		public function getNodes()
-		{
-			return array_values($this->data);
-		}
-		
-		public function hasNode($node_id)
-		{
-			return isset($this->data[$node_id]);
-		}
-		
-		public function getNode($node_id)
-		{
-			return $this->data[$node_id];
-		}
-		
-		public function getRandomNode()
-		{
-			$result = null;
-			if (!empty($this->data)) {
-				$ids = array_keys($this->data);
-				$result = $this->getNode($ids[rand(0, sizeof($ids) - 1)]);
-			}
-			return $result;
-		}
-		
-		public function add($node, $parent_id = null)
-		{
-			$node['_id'] = $this->generateId();
-			
-			if ($parent_id) {
-				$parent = &$this->data[$parent_id];
-				$this->shiftNodesRight($parent['_rgt']);
-				$node['_parent'] = $parent_id;
-				$node['_level'] = $parent['_level'] + 1;
-				$node['_lft'] = $parent['_rgt'] - 2;
-				$node['_rgt'] = $node['_lft'] + 1;
-				$parent['_is_leaf'] = false;
-				$node['_is_leaf'] = true; 
-			}
-			else {
-				$node['_parent'] = null;
-				$node['_level'] = 1;
-				$node['_lft'] = $this->getMaxRightPos() + 1;
-				$node['_rgt'] = $node['_lft'] + 1;
-				$node['_is_leaf'] = true; 
-			}
-			
-			$this->data[$node['_id']] = $node;
-		}
-		
-		public function getParent($node_id)
-		{
-			$parent = null;
-			
-			if (
-				isset($this->data[$node_id]) && 
-				isset($this->data[$this->data[$node_id]['_parent']])
-			) {
-				$parent = $this->data[$this->data[$node_id]['_parent']];
-			}
-			
-			return $parent;
-		}
-		
-		public function getChildren($node_id = null)
-		{
-			$children = null;
-			
-			if ($node_id)
-			{
-				$children = array();
-				foreach ($this->data as $id => $node) {
-					if ($node['_parent'] == $node_id) {
-						$children[] = $node;
-					}
-				}
-			}
-			else {
-				$children = $this->getRoots();
-			}
-			
-			return $children;
-		}
-		
-		public function getRoots()
-		{
-			$roots = array();
-			
-			foreach ($this->data as $id => $node) {
-				if ($node['_parent'] === null) {
-					$roots[] = $node;
-				}
-			}
-			
-			return $roots;
-		}
-		
-		public function getChildrenPaged($node_id = null, $start = null, $limit = null)
-		{
-			$children = $this->getChildren($node_id);
-			if (!$start) {
-				$start = 0;
-			}
-			if (!$limit) {
-				$limit = sizeof($children);
-			}
-			return array_slice($children, $start, $limit);
-		}
-		
-		public function getChildrenCount($node_id = null)
-		{
-			$children = $this->getChildren($node_id);
-			return sizeof($children);
-		}
-		
-		private function generateId()
-		{
-			return empty($this->data) ? 1 : max(array_keys($this->data)) + 1;
-		}
-		
-		private function getMinLeftPos()
-		{
-			$result = 0;
-			
-			if (!empty($this->data)) {
-				$values = array();
-				foreach ($this->data as $id => $node) {
-					$values[] = $node['_lft'];
-				}
-				$result = min($values);
-			}
-			
-			return $result;
-		}
-		
-		private function getMaxRightPos()
-		{
-			$result = 0;
-			
-			if (!empty($this->data)) {
-				$values = array();
-				foreach ($this->data as $id => $node) {
-					$values[] = $node['_rgt'];
-				}
-				$result = max($values);
-			}
-			
-			return $result;
-		}
-		
-		private function shiftNodesRight($start_from, $offset = 2)
-		{
-			foreach ($this->data as $id => &$node) {
-				if ($node['_lft'] >= $start_from) {
-					$node['_lft'] += $offset;
-				}
-				if ($node['_rgt'] >= $start_from) {
-					$node['_rgt'] += $offset;
-				}
-			}
-		}
-	}
-
-	function array_extend($a, $b) {
-		foreach($b as $k=>$v) {
-			if( is_array($v) ) {
-				if( !isset($a[$k]) ) {
-					$a[$k] = $v;
-				} else {
-					$a[$k] = array_extend($a[$k], $v);
-				}
-			} else {
-				$a[$k] = $v;
-			}
-		}
-		return $a;
-	}
-
-	function formatNpwp($npwp) {
-		return substr($npwp,0,2).'.'.	substr($npwp,2,3).'.'.	substr($npwp,5,3).'.'.	substr($npwp,8,1).'-'.	substr($npwp,9,3).'.'.	substr($npwp,12,3);
-	}
-
-	function get_golongan($number) {
-		$digit1 = substr($number, 0, 1);
-		$digit2 = substr($number, 1, 1);
-		
-		switch ($digit1) {
-			case 1:
-				$romawi = "I";
-				break;
-			case 2:
-				$romawi = "II";
-				break;
-			case 3:
-				$romawi = "III";
-				break;
-			case 4:
-				$romawi = "IV";
-				break;
-		}
-		
-		switch ($digit2) {
-			case 1:
-				$abjad = "A";
-				break;
-			case 2:
-				$abjad = "B";
-				break;
-			case 3:
-				$abjad = "C";
-				break;
-			case 4:
-				$abjad = "D";
-				break;			
-		}
-		
-		return $romawi.$abjad;
-	}
-
-	function stripDegree($name) {
-		//$degrees = array ('S.S', 'S.H', 'S.E', 'S.IP', 'S.Sos', 'S.Psi', 'S.Ked', 'S.KM', 'S.KG', 'S.P', 'S.TP', 'S.Pt', 'S.Pi', 'S.Hut', 'S.KH', 'S.Si', 'S.T', 'S.Kom', 'S.Sn', 'S.Pd', 'S.Ag', 'M.Hum', 'M.M', 'M.Si', 'M.Kes', 'M.P', 'M.T', 'M.Kom', 'M.Sn', 'M.Pd', 'M.Ag', 'SS', 'SH', 'SE', 'SP', 'ST', 'MM', 'MP', 'MT', 'Prof.', 'DR.', 'dr.', 'drg.', 'Drs.', 'Dra.', 'PhD', 'Ph.D', 'H.', 'Hj.');
-		$degrees = array ('A.Md', 'S.IP', 'S.Sos', 'S.Psi', 'S.Ked', 'S.KM', 'S.KG', 'S.TP', 'S.Pt', 'S.Pi', 'S.Hut', 'S.KH', 'S.Si', 'S.Kom', 'S.Sn', 'S.Pd', 'S.Ag', 'S.S', 'S.H', 'S.E', 'S.P', 'S.T', 'MBA', 'M.Ak', 'M.Hum', 'M.Si', 'M.Kes', 'M.Kom', 'M.Sn', 'M.Pd', 'M.Ag', 'M.M', 'M.P', 'M.T', 'SAP', 'SS', 'SH', 'SE', 'SP', 'ST', 'MM', 'MP', 'MT', 'MA', 'Prof.', 'Dr.', 'Ir.', 'Drs.', 'Dra', 'dr.', 'drg.', 'PhD', 'Ph.D', 'H.', 'Hj.');
-		$punctuationMark = array('.', ',');
-		$name = str_replace($degrees, "", $name);	
-		$name = str_replace($punctuationMark, "", $name);
-		return $name;
-	}
-
-	function compareName($name1, $name2) {
-		$gelars = array ('S.IP', 'S.Sos', 'S.Psi', 'S.Ked', 'S.KM', 'S.KG', 'S.TP', 'S.Pt', 'S.Pi', 'S.Hut', 'S.KH', 'S.Si', 'S.Kom', 'S.Sn', 'S.Pd', 'S.Ag', 'S.S', 'S.H', 'S.E', 'S.P', 'S.T', 'M.Hum', 'M.Si', 'M.Kes', 'M.Kom', 'M.Sn', 'M.Pd', 'M.Ag', 'M.M', 'M.P', 'M.T', 'SS', 'SH', 'SE', 'SP', 'ST', 'MM', 'MP', 'MT', 'Prof.', 'DR.', 'Drs.', 'Dra', 'dr.', 'drg.', 'PhD', 'Ph.D', 'H.', 'Hj.');
-		//$name1 = str_replace($gelars, "", $name1);
-		//$name2 = str_replace($gelars, "", $name2);
-		$name1 = stripDegree($name1);
-		$name2 = stripDegree($name2);
-		return (soundex($name1) == soundex($name2)); 
-	}
-
-	function searchSimilarNameByArrayOfObjects($needle, $objects) {	
-		$arr = array();
-		$needle = stripDegree($needle);
-		for ($i = 0; $i < sizeof($objects); $i++) {
-			$arr[$i] = stripDegree($objects[$i]->getNama());
-		}
-		
-		$index = searchMostSimilar($needle, $arr, true, 10);
-		/*
-		if (substr($needle, 0, 5) == "Catur") {
-			echo "searching $needle among \n";
-			print_r($arr);
-			$index = searchMostSimilar($needle, $arr, true, 5);
-		} else {
-			return 1;
-		}
-		*/
-		//echo $index; die;
-		//print_r($objects[$index]); die;
-		if ($index == -1) { 
-			//echo "<font color='red'><b>Untuk $needle tidak ditemukan match (lev check failed)</b></font><br>";
-			return false;
-		}
-		if ($index == -2) {
-			//echo "<font color='red'><b>Untuk $needle tidak ditemukan match (soundex check failed)</b></font><br>";
-			return false;
-		}
-		if ($index >= 0) {
-			//echo "Untuk $needle ditemukan matching dengan {$arr[$index]}<br>";
-			return $objects[$index];
-		}	
-		//return $objects[$index];	
-	}
-
-	function searchSimilarByArrayOfObjects($needle, $objects) {
-		$arr = array();
-		for ($i = 0; $i < sizeof($objects); $i++) {
-			$arr[$i] = $objects[$i]->getNama();		
-		}
-		$index = searchMostSimilar($needle, $arr, true);
-		//echo $index; die;
-		//print_r($objects[$index]); die;
-		return $objects[$index];	
-	}
-
-	function searchMostSimilar($needle, $haystack, $returnIndex = FALSE, $matchLimit = 0) {
-		
-		$closest = "";
-		$shortest = -1;
-		
-		//foreach ($haystack as $h) {
-		for ($i = 0; $i < sizeof($haystack); $i++){
-			
-			$h = $haystack[$i];
-			// calculate the distance between the input word,
-			// and the current word
-			$lev = levenshtein($needle, $h);
-			//echo "$h : $lev<br>";
-			// check for an exact match
-			if ($lev == 0) {
-		
-				// closest word is this one (exact match)
-				$closest = $h;
-				$closestIndex = $i;
-				$shortest = 0;
-		
-				// break out of the loop; we've found an exact match
-				break;
-			}
-		
-			// if this distance is less than the next found shortest
-			// distance, OR if a next shortest word has not yet been found
-			if ($lev <= $shortest || $shortest < 0) {
-				// set the closest match, and shortest distance
-				$closest  = $h;
-				$closestIndex = $i;
-				$shortest = $lev;
-			}			
-		}	
-			
-		if ($shortest > 0) {
-			//$soundex = (soundex($needle) == soundex($closest)) ? "" : "<b><font color='red'>, namun terdengar berbeda</font></b>";
-			$soundexCheckPass = (soundex($needle) == soundex($closest)) ? true : false;
-		} else {
-			$soundexCheckPass = true;
-		}
-		
-		//$pass = false;
-		
-		if ($shortest > $matchLimit) {
-			return -1;
-		} else if ($shortest <= $matchLimit) {
-			if ($soundexCheckPass) {
-				if ($returnIndex)
-					return $closestIndex;
-				else 
-					return $closest;
-			} else {
-				return -2;
-			}
-		}
-		
-		//echo "<br>Perbedaan target dengan sasaran sejumlah $shortest kata, sedangkan batasan maksimal perbedaan $matchLimit</br>";
-		/*
-		if ($index >= 0) {
-			if ($shortest > 0) {
-				$soundex = (soundex($needle) == soundex($closest)) ? "" : "<b><font color='red'>, namun terdengar berbeda</font></b>";		
-			} else {
-				//don't check soundex
-			}
-			echo "Untuk $needle ditemukan matching dengan {$closest}$soundex<br>";		
-		} else {
-			echo "<b><font color='red'>Untuk $needle tidak ditemukan match</font></b><br>";
-		}
-		
-		if ($matchLimit == 0) {
-			if ($returnIndex)
-				return $closestIndex;
-			else 
-				return $closest;
-		}
-		
-		if ($shortest <= $matchLimit) {
-			if ($returnIndex)
-				return $closestIndex;
-			else 
-				return $closest;
-		} else {
-			return -1;
-		}
-		*/
-	}
-
-	/*
-	function date_diff($date1, $date2) {
-		$current = $date1;
-		$datetime2 = date_create($date2);
-		$count = 0;
-		while(date_create($current) < $datetime2){
-			$current = gmdate("Y-m-d", strtotime("+1 day", strtotime($current)));
-			$count++;
-		}
-		return $count;
-	}
-
-
-	function date_diff($date1, $date2) {
-		//$date1 = "2008-11-01 22:45:00"; 
-		//$date2 = "2009-12-04 13:44:01"; 
-		$diff = abs(strtotime($date2) - strtotime($date1)); 
-		/*
-		$years   = floor($diff / (365*60*60*24)); 
-		$months  = floor(($diff - $years * 365*60*60*24) / (30*60*60*24)); 
-		$days    = floor(($diff - $years * 365*60*60*24 - $months*30*60*60*24)/ (60*60*24));
-		$hours   = floor(($diff - $years * 365*60*60*24 - $months*30*60*60*24 - $days*60*60*24)/ (60*60)); 
-		$minutes  = floor(($diff - $years * 365*60*60*24 - $months*30*60*60*24 - $days*60*60*24 - $hours*60*60)/ 60); 
-		$seconds = floor(($diff - $years * 365*60*60*24 - $months*30*60*60*24 - $days*60*60*24 - $hours*60*60 - $minuts*60)); 
-		//printf("%d years, %d months, %d days, %d hours, %d minuts\n, %d seconds\n", $years, $months, $days, $hours, $minuts, $seconds); 	
-		switch ($jenis) {
-			case "days":
-				return floor($diff / (365*60*60*24));
-				break;
-			case "months"	
-				return floor($diff / (30*60*60*24));
-				break;
-		} * /
-		$days = floor ($diff /(60*60*24));
-		return $days;
-	}
-	*/
-	function date_add_days ($date, $days) {
-		return date("Y/m/d", strtotime("+$days day", strtotime($date)));
-	}
-
-	function send_sms($nomor, $pesan, $ipaddress, $user, $password, $logfile, $debug=false){
-		$pesan = urlencode($pesan);
-		
-		$send_url = "http://$ipaddress/masking/send.php?username=$user&password=$password&hp=$nomor&message=$pesan";
-		$handle = fopen($send_url, "r");
-		//echo "Using $logfile as log file\n";
-		
-		//write_log("Writing: ".$send_url."\n", $logfile);
-					
-		//$handle = @fopen("/tmp/inputfile.txt", "r");
-		$buffer = "";
-		
-		if ($handle) {
-			while (!feof($handle)) {
-				$buffer .= fgets($handle, 4096);				        
-			}
-			fclose($handle);
-		}
-		//$line = fgets($handle);	
-		if ($debug) {
-			echo "Mencoba mengirim sms dengan url: $send_url\n";
-			echo "SMS Broadcast Server menjawab: $buffer\n";
-		}
-		//write_log("Got Report#: ".$buffer."\n", $logfile);
-		
-		$get_report_url = "http://$ipaddress/masking/report.php?rpt=".trim($buffer);
-		$handle2 = fopen($get_report_url, "r");
-		
-		//write_log("Writing: ".$get_report_url."\n", $logfile);	
-		$buffer2 = "";	
-		
-		if ($handle2) {
-			while (!feof($handle2)) {
-				$buffer2 .= fgets($handle2, 4096);				        
-			}
-			fclose($handle2);
-		}	
-		
-		//write_log("Got Status#: ".$buffer2."\n", $logfile);
-		
-		return $buffer2;
-		
-	}
-
-	function write_log($logfile, $message) {
-		//echo $logfile; 
-		$handle = fopen($logfile, 'w');
-		fwrite($handle, $message);
-		fclose($handle);
-	}
-
-	function isMobileBrowser() {
-		
-		$mobile_browser = '0';
-	 
-		IF(PREG_MATCH('/(up.browser|up.link|mmp|symbian|smartphone|midp|wap|phone)/i',
-			STRTOLOWER($_SERVER['HTTP_USER_AGENT']))){
-			$mobile_browser++;
-			}
-		 
-		IF((STRPOS(STRTOLOWER($_SERVER['HTTP_ACCEPT']),'application/vnd.wap.xhtml+xml')>0) or
-			((ISSET($_SERVER['HTTP_X_WAP_PROFILE']) or ISSET($_SERVER['HTTP_PROFILE'])))){
-			$mobile_browser++;
-			}
-		 
-		$mobile_ua = STRTOLOWER(SUBSTR($_SERVER['HTTP_USER_AGENT'],0,4));
-		$mobile_agents = ARRAY(
-			'w3c ','acs-','alav','alca','amoi','audi','avan','benq','bird','blac',
-			'blaz','brew','cell','cldc','cmd-','dang','doco','eric','hipt','inno',
-			'ipaq','java','jigs','kddi','keji','leno','lg-c','lg-d','lg-g','lge-',
-			'maui','maxo','midp','mits','mmef','mobi','mot-','moto','mwbp','nec-',
-			'newt','noki','oper','palm','pana','pant','phil','play','port','prox',
-			'qwap','sage','sams','sany','sch-','sec-','send','seri','sgh-','shar',
-			'sie-','siem','smal','smar','sony','sph-','symb','t-mo','teli','tim-',
-			'tosh','tsm-','upg1','upsi','vk-v','voda','wap-','wapa','wapi','wapp',
-			'wapr','webc','winw','winw','xda','xda-');
-		 
-		IF(IN_ARRAY($mobile_ua,$mobile_agents)){
-			$mobile_browser++;
-		}
-		IF (STRPOS(STRTOLOWER($_SERVER['ALL_HTTP']),'OperaMini')>0) {
-			$mobile_browser++;
-		}
-		IF (STRPOS(STRTOLOWER($_SERVER['HTTP_USER_AGENT']),'windows')>0) {
-			$mobile_browser=0;
-		}
-		IF($mobile_browser>0){
-		   // do something
-		   return true;
-		} ELSE {
-		   // do something else
-		   return false;
-		}
-
-	}
-
-	function getTimeBasedRandom() {
-		//return (time()."|".strtotime('1 June 2011'));
-		$time = str_pad(time()-strtotime('1 June 2011') , 10, "0", STR_PAD_LEFT);
-		$time = substr($time, 0, 6);
-		$rand = str_pad(mt_rand(0, 9999999999), 10, "0", STR_PAD_LEFT);
-		return $time.$rand;
-	}
-
-	function bit32Clean($response)
-	{
-		$response = preg_replace('/:\s*(\d{10,})/',':"$1"', $response);
-		$response = preg_replace('/(\d{10,})\]/','"$1"]', $response);	
-		return $response;
-	}
-
-	define("XOND_ASCII", 0);
-	define("XOND_BIN", 2);
-	define("XOND_DEC", 10);
-	define("XOND_HEX", 16);
-	define("XOND_B32", 32);
-	define("XOND_B64", 64);
-	define("XOND_B95", 95);
-
-	function custombase_convert_big ($numstring, $frombase, $tobase)
-	{
-	   //$chars = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
-	   $chars = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_=!@#$%^&*()[]{}|;:,.<>/?`~ \\\'\"+-";
-	   //$chars = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_=!@#$%^&*()[]{}|;:,.<>/?`~ \\\'\"+-";
-	   $tostring = substr($chars, 0, $tobase);
-	   $numstring = strtolower($numstring);
-	   $length = strlen($numstring);
-
-	   $number = array();
-	   for ($i = 0; $i < $length; $i++) {
-		  $number[$i] = strpos($chars, $numstring{$i});
-	   }
-
-	   $result = '';
-	   do {
-		  $divide = 0;
-		  $newlen = 0;
-		  for ($i = 0; $i < $length; $i++) {
-			 $divide = $divide * $frombase + $number[$i];
-			 if ($divide >= $tobase) {
-				$number[$newlen++] = (int) ($divide / $tobase);
-				$divide = $divide % $tobase;
-			 } elseif ($newlen > 0) {
-				$number[$newlen++] = 0;
-			 }
-		  }
-		  $length = $newlen;
-		  $result = $tostring{$divide} . $result;
-	   } while ($newlen != 0);
-	   return $result;
-	}
-
-		
-	function randomGuid($identifier) {
-
-		$timestamp = strval(time());
-		$time = dec2hex($timestamp, 8); // Prints "16777215"	
-		$id = dec2hex($identifier, 12);	
-		/*
-		$rand1 = str_pad(mt_rand(0, 1759218), 7, "0", STR_PAD_LEFT);
-		$rand2 = str_pad(mt_rand(0, 6044415), 7, "0", STR_PAD_LEFT);	
-		$random = $rand1.$rand2;
-		*/
-		$random = dec2hex(randomBigint(), 12);
-		return "$time$id$random";
-	}
-
-	function randomBigint() {
-		$rand1 = str_pad(mt_rand(0, 28147497), 8, "0", STR_PAD_LEFT);	  //28147497|6710655
-		$rand2 = str_pad(mt_rand(0, 6710654), 7, "0", STR_PAD_LEFT);	
-		return $rand1.$rand2;
-	}
-
-	function dec2hex($number, $digits=12) {
-		/* $digits=12  means  FFFFFFFFFFFF */
-		return str_pad(custombase_convert_big ($number, XOND_DEC, XOND_HEX), $digits, "0", STR_PAD_LEFT); // Prints "16777215"	
-	}
-
-	function hex2b32($number, $digits=26) {
-		/* $digits=26  means  the whole number in base32 format */
-		return str_pad(custombase_convert_big ($number, XOND_HEX, XOND_B32), $digits, "0", STR_PAD_LEFT);
-	}
-
-	function hex2b64($number, $digits=22) {
-		/* $digits=22  means  the whole number in base64 format */
-		return str_pad(custombase_convert_big ($number, XOND_HEX, XOND_B64), $digits, "0", STR_PAD_LEFT);
-	}
-
-	function hex2b95($number, $digits=20) {
-		/* I don't think we'll use this */
-		//return custombase_convert_big ($number, XOND_HEX, XOND_B95);
-		return str_pad(custombase_convert_big ($number, XOND_HEX, XOND_B95), $digits, "0", STR_PAD_LEFT);
-	}
-
-	function getTarifPph21($status_pegawai, $ada_npwp, $golongan) {
-		if ($status_pegawai == 1 ) {
-			list($tingkat,$huruf) = explode("/", strtoupper($golongan));
-			if ($golongan < 9) {
-				return 0;
-			}
-			$tarif = ($golongan >= 13) ? 0.15 : 0.05;
-			if (!$ada_npwp) {
-				$tarif = $tarif * 1.2;
-			}		
-			return $tarif;
-		} else {
-			$tarif = 0.05;
-			if (!$ada_npwp) {
-				$tarif = $tarif * 1.2;
-			}
-			return $tarif;
-		}
-	}
-
-	function arrayToXml($data, $tableName) {
-		$xml = new XmlWriter();
-		$xml->openMemory();
-		$xml->startDocument($xml_version, $xml_encoding);
-		$xml->startElement($tableName."s");
-		foreach($data as $d){
-			$xml->startElement($tableName);
-			foreach($d as $key => $value){			
-				//$xml->startElement($key);
-				$xml->writeElement($key, $value);
-				//write($xml, $value);
-				//$xml->endElement();			
-			}
-			$xml->endElement();
-		}
-		$xml->endElement();
-		return $xml->outputMemory(true); 
-	}
-
-
-	/*
-	// Usage
-	// Named-based UUID.
-	$v3uuid = UUID::v3('1546058f-5a25-4334-85ae-e68f2a44bbaf', 'SomeRandomString');
-	$v5uuid = UUID::v5('1546058f-5a25-4334-85ae-e68f2a44bbaf', 'SomeRandomString');
-	// Pseudo-random UUID
-	$v4uuid = UUID::v4();
-	*/
-	class UUIDold {
-	  public static function v3($namespace, $name) {
-		if(!self::is_valid($namespace)) return false;
-
-		// Get hexadecimal components of namespace
-		$nhex = str_replace(array('-','{','}'), '', $namespace);
-
-		// Binary Value
-		$nstr = '';
-
-		// Convert Namespace UUID to bits
-		for($i = 0; $i < strlen($nhex); $i+=2) {
-		  $nstr .= chr(hexdec($nhex[$i].$nhex[$i+1]));
-		}
-
-		// Calculate hash value
-		$hash = md5($nstr . $name);
-
-		return sprintf('%08s-%04s-%04x-%04x-%12s',
-
-		  // 32 bits for "time_low"
-		  substr($hash, 0, 8),
-
-		  // 16 bits for "time_mid"
-		  substr($hash, 8, 4),
-
-		  // 16 bits for "time_hi_and_version",
-		  // four most significant bits holds version number 3
-		  (hexdec(substr($hash, 12, 4)) & 0x0fff) | 0x3000,
-
-		  // 16 bits, 8 bits for "clk_seq_hi_res",
-		  // 8 bits for "clk_seq_low",
-		  // two most significant bits holds zero and one for variant DCE1.1
-		  (hexdec(substr($hash, 16, 4)) & 0x3fff) | 0x8000,
-
-		  // 48 bits for "node"
-		  substr($hash, 20, 12)
-		);
-	  }
-
-	  public static function v4() {
-		return sprintf('%04x%04x-%04x-%04x-%04x-%04x%04x%04x',
-
-		  // 32 bits for "time_low"
-		  mt_rand(0, 0xffff), mt_rand(0, 0xffff),
-
-		  // 16 bits for "time_mid"
-		  mt_rand(0, 0xffff),
-
-		  // 16 bits for "time_hi_and_version",
-		  // four most significant bits holds version number 4
-		  mt_rand(0, 0x0fff) | 0x4000,
-
-		  // 16 bits, 8 bits for "clk_seq_hi_res",
-		  // 8 bits for "clk_seq_low",
-		  // two most significant bits holds zero and one for variant DCE1.1
-		  mt_rand(0, 0x3fff) | 0x8000,
-
-		  // 48 bits for "node"
-		  mt_rand(0, 0xffff), mt_rand(0, 0xffff), mt_rand(0, 0xffff)
-		);
-	  }
-
-	  public static function v5($namespace, $name) {
-		if(!self::is_valid($namespace)) return false;
-
-		// Get hexadecimal components of namespace
-		$nhex = str_replace(array('-','{','}'), '', $namespace);
-
-		// Binary Value
-		$nstr = '';
-
-		// Convert Namespace UUID to bits
-		for($i = 0; $i < strlen($nhex); $i+=2) {
-		  $nstr .= chr(hexdec($nhex[$i].$nhex[$i+1]));
-		}
-
-		// Calculate hash value
-		$hash = sha1($nstr . $name);
-
-		return sprintf('%08s-%04s-%04x-%04x-%12s',
-
-		  // 32 bits for "time_low"
-		  substr($hash, 0, 8),
-
-		  // 16 bits for "time_mid"
-		  substr($hash, 8, 4),
-
-		  // 16 bits for "time_hi_and_version",
-		  // four most significant bits holds version number 5
-		  (hexdec(substr($hash, 12, 4)) & 0x0fff) | 0x5000,
-
-		  // 16 bits, 8 bits for "clk_seq_hi_res",
-		  // 8 bits for "clk_seq_low",
-		  // two most significant bits holds zero and one for variant DCE1.1
-		  (hexdec(substr($hash, 16, 4)) & 0x3fff) | 0x8000,
-
-		  // 48 bits for "node"
-		  substr($hash, 20, 12)
-		);
-	  }
-
-	  public static function is_valid($uuid) {
-		return preg_match('/^\{?[0-9a-f]{8}\-?[0-9a-f]{4}\-?[0-9a-f]{4}\-?'.
-						  '[0-9a-f]{4}\-?[0-9a-f]{12}\}?$/i', $uuid) === 1;
-	  }
-	}
-
-	function dir_walk($dir) {
-		$return = array();
-		if ($dh = opendir($dir)) {
-			while (($file = readdir($dh)) !== false) {
-				$obj = (object)array();
-				if ($file === '.' || $file === '..') {
-					continue;
-				}
-				if (is_file($dir ."/". $file)) {
-					$obj->leaf = true;
-					
-					/* Example how to detect file extension and add icon class
-					$ext = end(explode(".", $file));
-					if ($ext == "js") {
-					$obj->iconCls = "js-file";
-					}
-					*/
-					continue;
-					
-				} elseif (is_dir($dir ."/". $file)) {
-					//$obj->children = /*$this->*/dir_walk($dir ."/". $file);
-					$obj->children = dir_walk($dir ."/". $file);
-				}
-				$obj->id = $dir ."/". $file;
-				$obj->text = $file;
-				$return[] = $obj;			
-			}
-			closedir($dh);
-		}
-		return $return;
-	}
-
-	function pg_gen_uuid ($dbname) {
-		executeSql("CREATE EXTENSION IF NOT EXISTS 'uuid-ossp'", $dbname);
-		return getValueBySql("select uuid_generate_v1()");
-
-	}
-
-	class UUID {
-	 const MD5  = 3;
-	 const SHA1 = 5;
-	 const clearVer = 15;  // 00001111  Clears all bits of version byte with AND
-	 const clearVar = 63;  // 00111111  Clears all relevant bits of variant byte with AND
-	 const varRes   = 224; // 11100000  Variant reserved for future use
-	 const varMS    = 192; // 11000000  Microsft GUID variant
-	 const varRFC   = 128; // 10000000  The RFC 4122 variant (this variant)
-	 const varNCS   = 0;   // 00000000  The NCS compatibility variant
-	 const version1 = 16;  // 00010000
-	 const version3 = 48;  // 00110000
-	 const version4 = 64;  // 01000000
-	 const version5 = 80;  // 01010000
-	 const interval = 122192928000000000.0; // Time (in 100ns steps) between the start of the UTC and Unix epochs
-	 const nsDNS  = '6ba7b810-9dad-11d1-80b4-00c04fd430c8';
-	 const nsURL  = '6ba7b811-9dad-11d1-80b4-00c04fd430c8';
-	 const nsOID  = '6ba7b812-9dad-11d1-80b4-00c04fd430c8';
-	 const nsX500 = '6ba7b814-9dad-11d1-80b4-00c04fd430c8';
-	 protected static $randomFunc = 'randomTwister';
-	 protected static $randomSource = NULL;
-	 //instance properties
-	 protected $bytes;
-	 protected $hex;
-	 protected $string;
-	 protected $urn;
-	 protected $version;
-	 protected $variant;
-	 protected $node;
-	 protected $time;
-	 
-	 public static function mint($ver = 1, $node = NULL, $ns = NULL, $time = NULL) {
-	  /* Create a new UUID based on provided data. */
-	  switch((int) $ver) {
-	   case 1:
-		return new self(self::mintTime($node, $ns, $time));
-	   case 2:
-		// Version 2 is not supported 
-		throw new UUIDException("Version 2 is unsupported.");
-	   case 3:
-		return new self(self::mintName(self::MD5, $node, $ns));
-	   case 4:
-		return new self(self::mintRand());
-	   case 5:
-		return new self(self::mintName(self::SHA1, $node, $ns));
-	   default:
-		throw new UUIDException("Selected version is invalid or unsupported.");
-	  }
-	 }
-
-	 public static function import($uuid) {
-	  /* Import an existing UUID. */
-	  return new self(self::makeBin($uuid, 16));
-	 }   
-
-	 public static function compare($a, $b) {
-	  /* Compares the binary representations of two UUIDs.
-		 The comparison will return true if they are bit-exact,
-		  or if neither is valid. */
-	  if (self::makeBin($a, 16)==self::makeBin($b, 16))
-	   return TRUE;
-	  else
-	   return FALSE;
-	 }
-	 
-	 public static function seq() {
-	  /* Generate a random clock sequence; this is just two random bytes */
-	  return self::ramdonBytes(2);
-	 }
-
-	 public function __toString() {
-	  return $this->string;
-	 }
-
-	 public function __get($var) {
-	  switch($var) {
-	   case "bytes":
-		return $this->bytes;
-	   case "hex":
-		return bin2hex($this->bytes);
-	   case "string":
-		return $this->__toString();
-	   case "urn":
-		return "urn:uuid:".$this->__toString();
-	   case "version":
-		return ord($this->bytes[6]) >> 4;
-	   case "variant":
-		$byte = ord($this->bytes[8]);
-		if ($byte >= self::varRes)
-		 return 3;
-		if ($byte >= self::varMS)
-		 return 2;
-		if ($byte >= self::varRFC)
-		 return 1;
-		else
-		 return 0;
-	   case "node":
-		if (ord($this->bytes[6])>>4==1)
-		 return bin2hex(substr($this->bytes,10));
-		else
-		 return NULL; 
-	   case "time":
-		if (ord($this->bytes[6])>>4==1) {
-		 // Restore contiguous big-endian byte order
-		 $time = bin2hex($this->bytes[6].$this->bytes[7].$this->bytes[4].$this->bytes[5].$this->bytes[0].$this->bytes[1].$this->bytes[2].$this->bytes[3]);
-		 // Clear version flag
-		 $time[0] = "0"; 
-		 // Do some reverse arithmetic to get a Unix timestamp
-		 $time = (hexdec($time) - self::interval) / 10000000;
-		 return $time;
-		}
-		else
-		 return NULL;
-	   default:
-		return NULL;
-	  }
-	 }
-
-	 protected function __construct($uuid) {
-	  if (strlen($uuid) != 16)
-	   throw new UUIDException("Input must be a valid UUID.");
-	  $this->bytes  = $uuid;
-	  // Optimize the most common use
-	  $this->string = 
-	   bin2hex(substr($uuid,0,4))."-".
-	   bin2hex(substr($uuid,4,2))."-".
-	   bin2hex(substr($uuid,6,2))."-".
-	   bin2hex(substr($uuid,8,2))."-".
-	   bin2hex(substr($uuid,10,6));
-	 }
-
-	 protected static function mintTime($node = NULL, $seq = NULL, $time = NULL) {
-	  /* Generates a Version 1 UUID.  
-		 These are derived from the time at which they were generated. */
-	  // Do a sanity check on clock sequence
-	  if ($seq !== NULL && strlen($seq) != 2) {
-	   throw UUIDException("Clock sequence most be a two-byte binary string.");
-	  }
-	  // If no time is specified, get time since Gregorian calendar 
-	  // reform in 100ns intervals.  This is exceedingly difficult
-	  // because of PHP's (and pack()'s) integer size limits
-	  // Note that this will never be more accurate than to the microsecond
-	  // Specifying a time for this method should only ever be used for
-	  // debugging purposes, lest uniqueness be compromised
-	  $time = ($time !== NULL) ? (float) $time : microtime(1);
-	  $time = $time * 10000000 + self::interval;
-	  // Convert to a string representation
-	  $time = sprintf("%F", $time);
-	  preg_match("/^\d+/", $time, $time); //strip decimal point
-	  // And now to a 64-bit binary representation
-	  $time = base_convert($time[0], 10, 16);
-	  $time = pack("H*", str_pad($time, 16, "0", STR_PAD_LEFT));
-	  // Reorder bytes to their proper locations in the UUID
-	  $uuid  = $time[4].$time[5].$time[6].$time[7].$time[2].$time[3].$time[0].$time[1];
-	  // Generate a random clock sequence if one is not provided
-	  // Please consult Sections 4.1.5 and 4.2.1 of RFC 4122 for
-	  // guidance regarding when to use a new clock sequence
-	  $uuid .= ($seq !== NULL) ? $seq : self::randomBytes(2);
-	  // set variant
-	  $uuid[8] = chr(ord($uuid[8]) & self::clearVar | self::varRFC);
-	  // set version
-	  $uuid[6] = chr(ord($uuid[6]) & self::clearVer | self::version1);
-	  // Set the final 'node' parameter, a MAC address
-	  if ($node) 
-	   $node = self::makeBin($node, 6);
-	  if (!$node) { 
-		// If no node was provided or if the node was invalid, 
-		//  generate a random MAC address and set the multicast bit
-	   $node = self::randomBytes(6);
-	   $node[0] = pack("C", ord($node[0]) | 1);
-	  }
-	  $uuid .= $node;
-	  return $uuid;
-	 }
-
-	 protected static function mintRand() {
-	  /* Generate a Version 4 UUID.  
-		 These are derived soly from random numbers. */
-	  // generate random fields
-	  $uuid = self::randomBytes(16);
-	  // set variant
-	  $uuid[8] = chr(ord($uuid[8]) & self::clearVar | self::varRFC);
-	  // set version
-	  $uuid[6] = chr(ord($uuid[6]) & self::clearVer | self::version4);
-	  return $uuid;
-	 }
-
-	 protected static function mintName($ver, $node, $ns) {
-	  /* Generates a Version 3 or Version 5 UUID.
-		 These are derived from a hash of a name and its namespace, in binary form. */
-	  if (!$node)
-	   throw new UUIDException("A name-string is required for Version 3 or 5 UUIDs.");
-	  // if the namespace UUID isn't binary, make it so
-	  $ns = self::makeBin($ns, 16);
-	  if (!$ns)
-	   throw new UUIDException("A valid UUID namespace is required for Version 3 or 5 UUIDs.");
-	  switch($ver) {
-	   case self::MD5: 
-		$version = self::version3;
-		$uuid = md5($ns.$node,1);
-		break;
-	   case self::SHA1:
-		$version = self::version5;
-		$uuid = substr(sha1($ns.$node,1),0, 16);
-		break;
-	  }
-	  // set variant
-	  $uuid[8] = chr(ord($uuid[8]) & self::clearVar | self::varRFC);
-	  // set version
-	  $uuid[6] = chr(ord($uuid[6]) & self::clearVer | $version);
-	  return ($uuid);
-	 }
-
-	 protected static function makeBin($str, $len) {
-	  /* Insure that an input string is either binary or hexadecimal.
-		 Returns binary representation, or false on failure. */
-	  if ($str instanceof self)
-	   return $str->bytes;
-	  if (strlen($str)==$len)
-	   return $str;
-	  else
-	   $str = preg_replace("/^urn:uuid:/is", "", $str); // strip URN scheme and namespace
-	   $str = preg_replace("/[^a-f0-9]/is", "", $str);  // strip non-hex characters
-	   if (strlen($str) != ($len * 2))
-		return FALSE;
-	   else
-		return pack("H*", $str);
-	 }
-
-	 public static function initRandom() {
-	  /* Look for a system-provided source of randomness, which is usually crytographically secure.
-		 /dev/urandom is tried first because tests suggest CAPICOM is quite slow to initialize. */
-	  if (is_readable('/dev/urandom')) {
-	   self::$randomSource = fopen('/dev/urandom', 'rb');
-	   self::$randomFunc = 'randomFRead';
-	  }
-	  else if (class_exists('COM', 0)) {
-	   try {
-		self::$randomSource = new COM('CAPICOM.Utilities.1');  // See http://msdn.microsoft.com/en-us/library/aa388182(VS.85).aspx
-		self::$randomFunc = 'randomCOM';
-	   }
-	   catch(Exception $e) {}
-	  }
-	  return self::$randomFunc;
-	 } 
-
-	 public static function randomBytes($bytes) {
-	  return call_user_func(array('self', self::$randomFunc), $bytes);
-	 } 
-
-	 protected static function randomTwister($bytes) {
-	  /* Get the specified number of random bytes, using mt_rand().
-		 Randomness is returned as a string of bytes. */
-	  $rand = "";
-	  for ($a = 0; $a < $bytes; $a++) {
-	   $rand .= chr(mt_rand(0, 255));
-	  } 
-	  return $rand;
-	 }
-	 
-	 protected static function randomFRead($bytes) {
-	  /* Get the specified number of random bytes using a file handle 
-		 previously opened with UUID::initRandom().
-		 Randomness is returned as a string of bytes. */
-	  return fread(self::$randomSource, $bytes);
-	 }
-	 
-	 protected static function randomCOM($bytes) {
-	  /* Get the specified number of random bytes using Windows'
-		 randomness source via a COM object previously created by UUID::initRandom().
-		 Randomness is returned as a string of bytes. */
-	  return base64_decode(self::$randomSource->GetRandom($bytes,0)); // straight binary mysteriously doesn't work, hence the base64
-	 }
-	}
-
-
-	function truepath($path){
-		// whether $path is unix or not
-		$unipath=strlen($path)==0 || $path{0}!='/';
-		// attempts to detect if path is relative in which case, add cwd
-		if(strpos($path,':')===false && $unipath)
-			$path=getcwd().DIRECTORY_SEPARATOR.$path;
-		// resolve path parts (single dot, double dot and double delimiters)
-		$path = str_replace(array('/', '\\'), DIRECTORY_SEPARATOR, $path);
-		$parts = array_filter(explode(DIRECTORY_SEPARATOR, $path), 'strlen');
-		$absolutes = array();
-		foreach ($parts as $part) {
-			if ('.'  == $part) continue;
-			if ('..' == $part) {
-				array_pop($absolutes);
-			} else {
-				$absolutes[] = $part;
-			}
-		}
-		$path=implode(DIRECTORY_SEPARATOR, $absolutes);
-		// resolve any symlinks
-		if(file_exists($path) && linkinfo($path)>0)$path=readlink($path);
-		// put initial separator that could have been lost
-		$path=!$unipath ? '/'.$path : $path;
-		return $path;
-	}
-
-	function encode_full_url(&$url) 
-	{ 
-		$url = urlencode($url); 
-		$url = str_replace("%2F", "/", $url); 
-		$url = str_replace("%3A", ":", $url); 
-		$url = str_replace("+", "%20", $url); 
-		return $url; 
-	} 
-
-	function serverDirToUrl($localPath, $localPathContainer, $pathDomain) {
-		$dokumenStorage = realpath($localPathContainer);
-		$relativePath = str_replace($dokumenStorage, "", $localPath);
-		$relativePath = str_replace("\\", "/", $relativePath);
-		$docUrl = $pathDomain.$relativePath;
-		$docUrl = encode_full_url($docUrl);
-		return $docUrl;
-	}
-
-	function addUuidStrip($hexstr) {
-		 $a = substr($hexstr, 0, 8);
-		 $b = substr($hexstr, 8, 4);
-		 $c = substr($hexstr, 12, 4);
-		 $d = substr($hexstr, 16, 4);
-		 $e = substr($hexstr, 20, 12); 
-		 $arr = array($a, $b, $c, $d, $e);
-		 return implode("-", $arr);
-	}
-
-	function generateUuid() {
-		$uuidObj = UUID::mint(1);
-		$uuid = $uuidObj->string;
-		
-		// Remove the dashes from the string
-		$uuid = str_replace("-", "", $uuid);
-		
-		return $uuid;
-	}
-	
-	function shortenUuid($uuid) {
-		$byteString = "";
-	
-		// Remove the opening and closing brackets
-		// $uuid = substr($uuid, 1, strlen($uuid) - 2);
-		
-		// echo "UUID without strips: ".$uuid."<br>";
-
-		// Read the UUID string byte by byte
-		for($i = 0; $i < strlen($uuid); $i += 2) {
-			// Get two hexadecimal characters
-			$s = substr($uuid, $i, 2);
-			
-			// Convert them to a byte
-			$d = hexdec($s);
-			//echo $d."<br><br>";
-		
-			// Convert it to a single character
-			$c = chr($d);
-			
-			// Append it to the byte string
-			$byteString = $byteString.$c;
-		} 
-	
-		// Convert the byte string to a base64 string
-		$b64uuid = base64_encode($byteString);
-	  
-		// echo "UUID in B64: ".$b64uuid."<br>";  
-	  
-		// Replace the "/" and "+" since they are reserved characters
-		$b64uuid = str_replace("/", "_", $b64uuid);   
-		$b64uuid = str_replace("+", "-", $b64uuid);  
-	  
-		// Remove the trailing "=="
-		$b64uuid = substr($b64uuid, 0, strlen($b64uuid) - 2); 
-	  
-		// echo "UUID in B64: ".$b64uuid."<br>";
-		return $b64uuid;
-	}
-	
-	function reverseUuid($b64uuid) {
-		$breverse64uuid = $b64uuid."==";
-		$breverse64uuid = str_replace("-", "+", $breverse64uuid);
-		$breverse64uuid = str_replace("_", "/", $breverse64uuid);
-		$breverse64uuid = base64_decode($breverse64uuid);
-		
-		// echo "UUID decoded back:".$breverse64uuid."<br>";
-	  
-		// $breverse64uuid = substr($breverse64uuid, 0, strlen($breverse64uuid) - 2); 
-		$hexstring = "";
-	  
-		for($i = 0; $i < strlen($breverse64uuid); $i++) {
-			$s = substr($breverse64uuid, $i, 1);
-			$d = ord($s);
-			$c = addZeroes(dechex($d),2);
-			$hexstring = $hexstring.$c;
-		}  
-	  
-		// echo $byteString." = ".$breverse64uuid;  
-		// echo "UUID in reversed back: ".$hexstring."<br>";
-	  
-		$uuidwithstrip = addUuidStrip($hexstring);
-		// echo "UUID with strip: " .$uuidwithstrip."<br>";
-	  
-		$uuidObj2 = UUID::import($uuidwithstrip);
-		putenv("TZ=Asia/Jakarta");
-		$convertToDate = date('l jS \of F Y h:i:S A', $uuidObj2->time);
-		// echo "Time detected in UUID: ". $convertToDate ."<br>";
-		// echo "Server's time: ".date('l jS \of F Y h:i:S A', $_SERVER['REQUEST_TIME']) ;
-		
-		return $hexstring;
-	}
-
-	function datediff($interval, $datefrom, $dateto, $using_timestamps = false) {
-		/*
-		$interval can be:
-		yyyy - Number of full years
-		q - Number of full quarters
-		m - Number of full months
-		y - Difference between day numbers
-			(eg 1st Jan 2004 is "1", the first day. 2nd Feb 2003 is "33". The datediff is "-32".)
-		d - Number of full days
-		w - Number of full weekdays
-		ww - Number of full weeks
-		h - Number of full hours
-		n - Number of full minutes
-		s - Number of full seconds (default)
-		*/
-		
-		if (!$using_timestamps) {
-			$datefrom = strtotime($datefrom, 0);
-			$dateto = strtotime($dateto, 0);
-		}
-		$difference = $dateto - $datefrom; // Difference in seconds
-		 
-		switch($interval) {
-		 
-		case 'yyyy': // Number of full years
-
-			$years_difference = floor($difference / 31536000);
-			if (mktime(date("H", $datefrom), date("i", $datefrom), date("s", $datefrom), date("n", $datefrom), date("j", $datefrom), date("Y", $datefrom)+$years_difference) > $dateto) {
-				$years_difference--;
-			}
-			if (mktime(date("H", $dateto), date("i", $dateto), date("s", $dateto), date("n", $dateto), date("j", $dateto), date("Y", $dateto)-($years_difference+1)) > $datefrom) {
-				$years_difference++;
-			}
-			$datediff = $years_difference;
-			break;
-
-		case "q": // Number of full quarters
-
-			$quarters_difference = floor($difference / 8035200);
-			while (mktime(date("H", $datefrom), date("i", $datefrom), date("s", $datefrom), date("n", $datefrom)+($quarters_difference*3), date("j", $dateto), date("Y", $datefrom)) < $dateto) {
-				$months_difference++;
-			}
-			$quarters_difference--;
-			$datediff = $quarters_difference;
-			break;
-
-		case "m": // Number of full months
-
-			$months_difference = floor($difference / 2678400);
-			while (mktime(date("H", $datefrom), date("i", $datefrom), date("s", $datefrom), date("n", $datefrom)+($months_difference), date("j", $dateto), date("Y", $datefrom)) < $dateto) {
-				$months_difference++;
-			}
-			$months_difference--;
-			$datediff = $months_difference;
-			break;
-
-		case 'y': // Difference between day numbers
-
-			$datediff = date("z", $dateto) - date("z", $datefrom);
-			break;
-
-		case "d": // Number of full days
-
-			$datediff = floor($difference / 86400);
-			break;
-
-		case "w": // Number of full weekdays
-
-			$days_difference = floor($difference / 86400);
-			$weeks_difference = floor($days_difference / 7); // Complete weeks
-			$first_day = date("w", $datefrom);
-			$days_remainder = floor($days_difference % 7);
-			$odd_days = $first_day + $days_remainder; // Do we have a Saturday or Sunday in the remainder?
-			if ($odd_days > 7) { // Sunday
-				$days_remainder--;
-			}
-			if ($odd_days > 6) { // Saturday
-				$days_remainder--;
-			}
-			$datediff = ($weeks_difference * 5) + $days_remainder;
-			break;
-
-		case "ww": // Number of full weeks
-
-			$datediff = floor($difference / 604800);
-			break;
-
-		case "h": // Number of full hours
-
-			$datediff = floor($difference / 3600);
-			break;
-
-		case "n": // Number of full minutes
-
-			$datediff = floor($difference / 60);
-			break;
-
-		default: // Number of full seconds (default)
-
-			$datediff = $difference;
-			break;
-		}    
-
-		return $datediff;
-	}
-
-	/*
-	function convertToArrayOfObjects($tableName, $keyName=NULL) {
-
-		$peerName = $tableName."Peer";		
-		//$obj = new ${$tableName}();
-		$p = new ${peerName}();
-		//$p = $obj->getPeer();
-		$arrOfObjects = $p->doSelect(new Criteria());
-		
-		foreach ($arrOfObjects as $o) {	
-			
-			if ($keyName) {
-				$key = $o->get{$keyName}();
-			} else {
-				$key = $o->getPrimaryKey(); 
-			}		
-			$arr[$key] = $o;		
-		}
-		
-		return $arr;
-		
-	}
-	*/
-
-	function zero_filter($val) {
-		$filtered = ($val === "0");
-		return !$filtered;
-	}
-
-	function zero_empty_array_filter($val) {
-		$filtered = ($val === 0) || ($val === "0") || ($val === "");
-		return !$filtered;
-	}
-
-	function to_roman_number($N){
-		$c='IVXLCDM';
-		for($a=5,$b=$s='';$N;$b++,$a^=7)
-				for($o=$N%$a,$N=$N/$a^0;$o--;$s=$c[$o>2?$b+$N-($N&=-2)+$o=1:$b].$s);
-		return $s;
-	} 
-
-	function date_to_bahasa($date) {
-		//date('Y-m-d')
-		$date = date_parse($date);
-		$tanggal = $date['day']." ".getbulan($date['month'])." ".$date['year'];
-		return $tanggal;
-	}
-
-	function koreksi_golongan($str) {
-		$angka = substr($str, 0, 1);
-		$out = str_replace($angka, to_roman_number($angka)."/", $str);
-		return $out;
-	}
-	
-	function birthday($birthday){
-	
-		list($date, $time) = explode(" ", $birthday);
-		list($year,$month,$day) = explode("-",$date);
-		$year_diff  = date("Y") - $year;
-		$month_diff = date("m") - $month;
-		$day_diff   = date("d") - $day;
-		if ($day_diff < 0 || $month_diff < 0)
-			$year_diff--;
-		
-		return $year_diff;
-	}
+<?php //0046a
+if(!extension_loaded('ionCube Loader')){$__oc=strtolower(substr(php_uname(),0,3));$__ln='ioncube_loader_'.$__oc.'_'.substr(phpversion(),0,3).(($__oc=='win')?'.dll':'.so');if(function_exists('dl')){@dl($__ln);}if(function_exists('_il_exec')){return _il_exec();}$__ln='/ioncube/'.$__ln;$__oid=$__id=realpath(ini_get('extension_dir'));$__here=dirname(__FILE__);if(strlen($__id)>1&&$__id[1]==':'){$__id=str_replace('\\','/',substr($__id,2));$__here=str_replace('\\','/',substr($__here,2));}$__rd=str_repeat('/..',substr_count($__id,'/')).$__here.'/';$__i=strlen($__rd);while($__i--){if($__rd[$__i]=='/'){$__lp=substr($__rd,0,$__i).$__ln;if(file_exists($__oid.$__lp)){$__ln=$__lp;break;}}}if(function_exists('dl')){@dl($__ln);}}else{die('The file '.__FILE__." is corrupted.\n");}if(function_exists('_il_exec')){return _il_exec();}echo('Site error: the file <b>'.__FILE__.'</b> requires the ionCube PHP Loader '.basename($__ln).' to be installed by the website operator. If you are the website operator please use the <a href="http://www.ioncube.com/lw/">ionCube Loader Wizard</a> to assist with installation.');exit(199);
+?>
+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

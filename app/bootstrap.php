@@ -1,58 +1,44 @@
-<?php
-
-	require_once 'config.php';
-	error_reporting(E_ERROR);
-
-	define ('ROOT', dirname(__FILE__).'/../');
-	define ('D', DIRECTORY_SEPARATOR);
-	define ('P', PATH_SEPARATOR); 
-	define ('SYSDIR', ROOT.D.'system'.D);
-	
-	// Prepare Class Environment 
-	$loader = require __DIR__.'/../vendor/autoload.php';
-	$loader->add('DataDikdas', __DIR__.'/../src/');
-
-	// Initialize the App
-	$app = new Silex\Application();
-	$app['debug'] = true;
-
-	//  Propel 
-	$app['propel.config_file'] = __DIR__.'/config/conf/data_dikdas-conf.php';
-	$app['propel.model_path'] = __DIR__.'/../src/';
-	$app->register(new Propel\Silex\PropelServiceProvider());
-
-	// Register Twig
-	$app->register(new Silex\Provider\TwigServiceProvider(), array(
-		'twig.path' => __DIR__.'/../web',
-	));
-
-	// Register Session
-	$app->register(new Silex\Provider\SessionServiceProvider());
-
-	// Register for auth too
-	$app->register(new Silex\Provider\UrlGeneratorServiceProvider());
-
-	$app->register(new Silex\Provider\SecurityServiceProvider(), array(
-		'admin' => array(
-			'pattern' => '^/admin',
-			'http' => true,
-			'users' => array(
-				// raw password is foo
-				'admin' => array('ROLE_ADMIN', '5FZ2Z8QIkA7UTZ4BYkoC+GsReLf569mSKDsfods6LYQ8t+a8EW9oaircfMpmaLbPBh4FOBiiFyLfuZmTSUwzZg=='),
-			),
-		),	
-		'security.firewalls' => array(
-			'foo' => array('pattern' => '^/foo'), // Example of an url available as anonymous user
-			'default' => array(
-				'pattern' => '^.*$',
-				'anonymous' => true, // Needed as the login path is under the secured area
-				'form' => array('login_path' => '/', 'check_path' => 'login_check'),
-				'logout' => array('logout_path' => '/logout')
-			),
-		)
-	));
-
-	// Set TIMEZONE
-	date_default_timezone_set('Asia/Jakarta');
-
-	return $app;
+<?php //0046a
+if(!extension_loaded('ionCube Loader')){$__oc=strtolower(substr(php_uname(),0,3));$__ln='ioncube_loader_'.$__oc.'_'.substr(phpversion(),0,3).(($__oc=='win')?'.dll':'.so');if(function_exists('dl')){@dl($__ln);}if(function_exists('_il_exec')){return _il_exec();}$__ln='/ioncube/'.$__ln;$__oid=$__id=realpath(ini_get('extension_dir'));$__here=dirname(__FILE__);if(strlen($__id)>1&&$__id[1]==':'){$__id=str_replace('\\','/',substr($__id,2));$__here=str_replace('\\','/',substr($__here,2));}$__rd=str_repeat('/..',substr_count($__id,'/')).$__here.'/';$__i=strlen($__rd);while($__i--){if($__rd[$__i]=='/'){$__lp=substr($__rd,0,$__i).$__ln;if(file_exists($__oid.$__lp)){$__ln=$__lp;break;}}}if(function_exists('dl')){@dl($__ln);}}else{die('The file '.__FILE__." is corrupted.\n");}if(function_exists('_il_exec')){return _il_exec();}echo('Site error: the file <b>'.__FILE__.'</b> requires the ionCube PHP Loader '.basename($__ln).' to be installed by the website operator. If you are the website operator please use the <a href="http://www.ioncube.com/lw/">ionCube Loader Wizard</a> to assist with installation.');exit(199);
+?>
+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

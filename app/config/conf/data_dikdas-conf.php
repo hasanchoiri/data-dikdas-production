@@ -9,19 +9,8 @@ $conf = array (
       'adapter' => 'pgsql',
       'connection' => 
       array (
-        'dsn' => 'pgsql:dbname=pendataan;host=localhost;user=postgres;password=ddikdas5',
+		'dsn' => 'pgsql:dbname='.DATABASENAME.';host='.DATABASEHOST.';port=5433;user='.DATABASEUSER.';password='.DATABASEPASSWORD,
         'persistent' => true,
-        'settings' => 
-        array (
-          'charset' => 
-          array (
-            'value' => 'utf8',
-          ),
-          'queries' => 
-          array (
-            'query' => 'set search_path to public, ref, nilai, blob',
-          ),
-        ),
       ),
     ),
     'default' => 'data_dikdas',
